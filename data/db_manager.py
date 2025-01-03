@@ -94,3 +94,28 @@ def fetch_player_puuid(game_name: str, tag_line: str) -> str:
         return ""
     finally:
         conn.close()
+
+
+def fetch_match_cache_path(match_id: str) -> str:
+    """
+    Fetch the cache path of a match from the database.
+
+    Args:
+        match_id (str): The ID of the match.
+
+    Returns:
+        str: The relative path to the cached match file, or an empty string if not found.
+    """
+    try:
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT cache_path FROM match_cache WHERE match_id = ?;
+        """, (match_id,))
+        result = cursor.fetchone()
+        return result[0] if result else ""
+    except Exception as e:
+        print(f"Database error: {e}")
+        return ""
+    finally:
+        conn.close()

@@ -9,13 +9,17 @@ sys.path.insert(0, project_root)
 # Load environment variables from .env
 load_dotenv(dotenv_path=os.path.join(project_root, '.env'))
 
+GAME_NAME = "Manon Win"
+TAG_LINE = "236KK"
+
 
 def main():
     print("Running tests...")
 
     # Run tests
     # api_key_test()
-    test_save_matches()
+    # test_save_matches()
+    test_placement_analyser()
 
 
 def api_key_test():
@@ -37,10 +41,7 @@ def api_key_test():
 def test_get_match_id():
     try:
         from tft_match_v1 import get_puuid, get_tft_matches_by_puuid
-
-        game_name = "Manon Win"
-        tag_line = "236KK"
-        puuid = get_puuid(game_name, tag_line)
+        puuid = get_puuid(GAME_NAME, TAG_LINE)
         match_id = get_tft_matches_by_puuid(puuid)
         print(match_id)
 
@@ -53,10 +54,7 @@ def test_get_match_id():
 def test_get_puuid():
     try:
         from api.tft_match_v1 import get_puuid
-
-        game_name = "Manon Win"
-        tag_line = "236KK"
-        result = get_puuid(game_name, tag_line)
+        result = get_puuid(GAME_NAME, TAG_LINE)
 
         print(f"Test get_puuid result: {result}")
 
@@ -68,17 +66,27 @@ def test_get_puuid():
 
 def test_save_matches():
     try:
-        from api.tft_match_v1 import get_puuid, get_tft_matches_by_puuid, get_tft_match_info, save_match
-        game_name = "Manon Win"
-        tag_line = "236KK"
-        puuid = get_puuid(game_name, tag_line)
-        matches = get_tft_matches_by_puuid(puuid, count=1)
+        from api.tft_match_v1 import get_puuid, get_tft_matches_by_puuid, get_match
+        puuid = get_puuid(GAME_NAME, TAG_LINE)
+        matches = get_tft_matches_by_puuid(puuid, count=20)
         for match_id in matches:
-            save_match(match_id)
+            participants = get_match(match_id)["info"]["participants"]
+            for participant in participants:
+                if participant["puuid"] == puuid:
+                    print(f'Placement: {participant["placement"]}')
+
     except ImportError as e:
         print(f"ImportError: {e}")
     except Exception as e:
         print(f"Error during test_save_matches: {e}")
+
+
+def test_placement_analyser():
+    from analysers.placement_analyser import top_n_rate
+    n = 4
+    count = 10
+    p = top_n_rate(GAME_NAME, TAG_LINE, n=n, count=count)
+    print(f"Player {GAME_NAME}#{TAG_LINE}'s top {n} rate is {p}% in recent {count} games")
 
 
 if __name__ == "__main__":

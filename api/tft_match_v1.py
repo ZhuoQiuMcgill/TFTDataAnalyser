@@ -3,6 +3,7 @@ import json
 import requests
 from dotenv import load_dotenv
 from data.db_manager import *
+import config.settings.dev
 
 # Load environment variables
 load_dotenv()
@@ -39,11 +40,13 @@ def get_puuid(game_name: str, tag_line: str) -> str:
     try:
         # Check if player exists in the database
         if check_player_exists(game_name, tag_line):
-            print("Fetching puuid information from database...")
+            if config.settings.dev.CACHE_DEBUG_LOGGING:
+                print("Fetching puuid information from database...")
             return fetch_player_puuid(game_name, tag_line)  # Use db_manager function to fetch PUUID
 
         # Fetch from Riot API if not in database
-        print("Getting puuid information from Riot Api...")
+        if config.settings.dev.CACHE_DEBUG_LOGGING:
+            print("Getting puuid information from Riot Api...")
         url = f"{BASE_URL}/riot/account/v1/accounts/by-riot-id/{game_name}/{tag_line}?api_key={RIOT_API_KEY}"
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
@@ -51,7 +54,8 @@ def get_puuid(game_name: str, tag_line: str) -> str:
 
         # Save to database
         if puuid:
-            print("Saving puuid information to database...")
+            if config.settings.dev.CACHE_DEBUG_LOGGING:
+                print("Saving puuid information to database...")
             save_player_info(game_name, tag_line, puuid)
 
         return puuid
@@ -74,7 +78,8 @@ def get_tft_matches_by_puuid(puuid: str, count: int = 20) -> list:
     """
     try:
         url = f"{BASE_URL}/tft/match/v1/matches/by-puuid/{puuid}/ids?count={count}&api_key={RIOT_API_KEY}"
-
+        if config.settings.dev.CACHE_DEBUG_LOGGING:
+            print("Getting match list from Riot Api...")
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
         return response.json()
@@ -105,22 +110,49 @@ def get_tft_match_info(match_id: str) -> dict:
         return {}
 
 
-def save_match(match_id: str):
+def get_match(match_id: str) -> dict:
     """
-    Save TFT match data to local cache if it is not already stored.
+    Retrieve TFT match data, saving it to the local cache if not already stored.
 
     Args:
-        match_id (str): Match ID to save.
+        match_id (str): Match ID to retrieve.
+
+    Returns:
+        dict: The match data.
     """
     try:
         # Check if match_id already exists in DB
         if is_match_cached(match_id):
-            print(f"Match {match_id} is already cached.")
-            return
+            # Load match data from cache
+            relative_path = fetch_match_cache_path(match_id)
+            file_path = os.path.join(BASE_DIR, relative_path)
+            if config.settings.dev.CACHE_DEBUG_LOGGING:
+                print(f'Getting match:{match_id} from cache...')
+            with open(file_path, 'r') as file:
+                return json.load(file)
 
-        # Fetch and save match data
-        print(f'Getting match:{match_id} from Riot Api...')
+        # Fetch match data from Riot API
+        if config.settings.dev.CACHE_DEBUG_LOGGING:
+            print(f'Getting match:{match_id} from Riot Api...')
         match_data = get_tft_match_info(match_id)
+        save_match(match_id, match_data)
+        return match_data
+
+    except Exception as e:
+        print(f"Error retrieving match {match_id}: {e}")
+        return {}
+
+
+def save_match(match_id: str, match_data: dict):
+    """
+    Save TFT match data to local cache and database.
+
+    Args:
+        match_id (str): Match ID to save.
+        match_data (dict): Match data to save.
+    """
+    try:
+        # Save match data to local cache
         os.makedirs(CACHE_DIR, exist_ok=True)
         file_path = os.path.join(CACHE_DIR, f"{match_id}.json")
         with open(file_path, 'w') as file:
@@ -130,8 +162,44 @@ def save_match(match_id: str):
         if not os.path.exists(file_path):
             raise FileNotFoundError(f"Failed to save match data at {file_path}")
 
-        # Save match ID and path to DB
-        save_match_to_db(match_id, file_path)
-        print(f"Match {match_id} saved to cache.")
+        # Save match ID and relative path to DB
+        relative_path = os.path.relpath(file_path, BASE_DIR)
+        save_match_to_db(match_id, relative_path)
+
+        if config.settings.dev.CACHE_DEBUG_LOGGING:
+            print(f"Match {match_id} saved to cache.")
     except Exception as e:
         print(f"Error saving match {match_id}: {e}")
+
+
+def get_player_info_in_match_by_puuid(puuid: str, match_id: str) -> dict:
+    """
+    Retrieve the player's information in a specific match by their PUUID.
+
+    Args:
+        puuid (str): The player's PUUID.
+        match_id (str): The match ID.
+
+    Returns:
+        dict: The player's in-match information if found, otherwise an empty dictionary.
+    """
+    try:
+
+        # Get match data
+        match_data = get_match(match_id)
+        if not match_data:
+            print(f"Match data not found for match ID: {match_id}.")
+            return {}
+
+        # Find player info in participants
+        participants = match_data["info"]["participants"]
+        for participant in participants:
+            if participant["puuid"] == puuid:
+                return participant
+
+        print(f"Player {puuid} not found in match {match_id}.")
+        return {}
+
+    except Exception as e:
+        print(f"Error retrieving player info in match {match_id}: {e}")
+        return {}

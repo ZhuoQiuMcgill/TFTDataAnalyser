@@ -1,7 +1,7 @@
 TFTDataAnalyser/
     .env
     .gitattributes
-    data.db
+    .gitignore
     project_structure.txt
     api/
         tft_match_v1.py

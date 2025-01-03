@@ -9,3 +9,5 @@ CREATE TABLE IF NOT EXISTS player_info (
     puuid TEXT NOT NULL,
     PRIMARY KEY (gameName, tagLine)
 );
+
+SELECT * FROM match_cache;
