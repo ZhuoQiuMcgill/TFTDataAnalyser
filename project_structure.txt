@@ -1,0 +1,21 @@
+TFTDataAnalyser/
+    .env
+    .gitattributes
+    data.db
+    project_structure.txt
+    api/
+        tft_match_v1.py
+    config/
+        settings/
+            base.py
+            dev.py
+            prod.py
+    data/
+        data.db
+        db_manager.py
+        sql/
+            create_table.sql
+            drop_table.sql
+    scripts/
+        save_project_structure.py
+        test_runner.py
