@@ -9,8 +9,9 @@ sys.path.insert(0, project_root)
 # Load environment variables from .env
 load_dotenv(dotenv_path=os.path.join(project_root, '.env'))
 
-GAME_NAME = "Manon Win"
-TAG_LINE = "236KK"
+RIOT_NAME = "Manon Win#236KK"
+GAME_NAME = RIOT_NAME.split("#")[0]
+TAG_LINE = RIOT_NAME.split("#")[1]
 
 
 def main():
@@ -19,7 +20,7 @@ def main():
     # Run tests
     # api_key_test()
     # test_save_matches()
-    test_placement_analyser()
+    test_game_stats_analyser()
 
 
 def api_key_test():
@@ -81,12 +82,12 @@ def test_save_matches():
         print(f"Error during test_save_matches: {e}")
 
 
-def test_placement_analyser():
-    from analysers.placement_analyser import top_n_rate
-    n = 4
+def test_game_stats_analyser():
+    from analysers.game_stats_analyser import GameStatsAnalyser
+
     count = 10
-    p = top_n_rate(GAME_NAME, TAG_LINE, n=n, count=count)
-    print(f"Player {GAME_NAME}#{TAG_LINE}'s top {n} rate is {p}% in recent {count} games")
+    gs_analyser = GameStatsAnalyser(GAME_NAME, TAG_LINE, count)
+    gs_analyser.log_information()
 
 
 if __name__ == "__main__":
